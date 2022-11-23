@@ -12,6 +12,7 @@ const validacaoSchema = joi.object({
     password: joi.string().required(),
 })
 
+
 const app = express()
 dotenv.config()
 app.use(cors())
@@ -29,11 +30,12 @@ try {
 const db = mongoClient.db("drivenCup");
 const userCollection = db.collection("users")
 const productCollection = db.collection("products")
+const sessionsCollection = db.collection("sessions")
 
 app.post("/users", async (req, res) => {
     const { name, email, password, confirmThePassword } = req.body
 
-    const validation = validacaoSchema.validate({ email, name, password }, { abortEarly: false })
+    const validation = validacaoSchema.validate({ email, name, password, image }, { abortEarly: false })
 
     if (validation.error) {
         const erros = validation.error.details.map((detail) => detail.message)
@@ -56,7 +58,7 @@ app.post("/users", async (req, res) => {
         const hashPassword = bcrypt.hashSync(password, 10)
         console.log(hashPassword)
 
-        await userCollection.insertOne({ name, email, password: hashPassword })
+        await userCollection.insertOne({ name, email, password: hashPassword, image })
         res.sendStatus(201)
 
 
@@ -68,6 +70,43 @@ app.post("/users", async (req, res) => {
 
 }
 
+)
+
+app.post("/login", async (req, res) =>{
+    const { email, password } = req.body
+    const token = uuidV4()
+
+    try {
+        const user = await userCollection.findOne({ email })
+        if (!user) {
+            res.status(401).send("Não autotizado")
+            return;
+        }
+
+        const passwordOk = bcrypt.compareSync(password, user.password)
+        if (!passwordOk) {
+            res.status(401).send("Não autorizado")
+            return
+        }
+
+        const tokenExist = await sessionsCollection.findOne({ userId: user._id })
+        if (!tokenExist) {
+            await db.collection("sessions").insertOne({
+                token,
+                userId: user._id
+            })
+            res.send({ token })
+            return;
+        }
+        res.send({ token: tokenExist.token })
+
+
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
+    }
+
+}
 )
 
 app.listen(5000, console.log("Server running in port: 5000"))
