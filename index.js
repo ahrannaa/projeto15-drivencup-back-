@@ -5,6 +5,8 @@ import { MongoClient, ObjectId } from "mongodb";
 import joi from "joi";
 import bcrypt from "bcrypt"
 import { v4 as uuidV4 } from "uuid"
+import { products } from "./products.js";
+
 
 const validacaoSchema = joi.object({
     email: joi.string().required().email(),
@@ -32,10 +34,17 @@ const userCollection = db.collection("users")
 const productCollection = db.collection("products")
 const sessionsCollection = db.collection("sessions")
 
+
+const loadDB = async () => {
+    console.log("Registering products...")
+    await productCollection.deleteMany({})
+    await productCollection.insertMany(products)
+}
+
 app.post("/users", async (req, res) => {
     const { name, email, password, confirmThePassword } = req.body
 
-    const validation = validacaoSchema.validate({ email, name, password, image }, { abortEarly: false })
+    const validation = validacaoSchema.validate({ email, name, password }, { abortEarly: false })
 
     if (validation.error) {
         const erros = validation.error.details.map((detail) => detail.message)
@@ -58,7 +67,7 @@ app.post("/users", async (req, res) => {
         const hashPassword = bcrypt.hashSync(password, 10)
         console.log(hashPassword)
 
-        await userCollection.insertOne({ name, email, password: hashPassword, image })
+        await userCollection.insertOne({ name, email, password: hashPassword })
         res.sendStatus(201)
 
 
@@ -72,7 +81,7 @@ app.post("/users", async (req, res) => {
 
 )
 
-app.post("/login", async (req, res) =>{
+app.post("/login", async (req, res) => {
     const { email, password } = req.body
     const token = uuidV4()
 
@@ -109,4 +118,61 @@ app.post("/login", async (req, res) =>{
 }
 )
 
-app.listen(5000, console.log("Server running in port: 5000"))
+app.get("/products", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+
+    try {
+        const session = await sessionsCollection.findOne({ token })
+        if (!session) {
+            res.send("Não autorizado")
+            return;
+        }
+
+        const products = await productCollection.find().toArray()
+        const parcialProducts = products.map(({ _id, name, image, price }) => ({ _id:_id.toString(), name, image, price }))
+
+        res.send(parcialProducts)
+        console.log(parcialProducts)
+
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
+    }
+
+})
+
+app.get("/products/:id", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+    const { id } = req.params;
+    console.log(id)
+
+    try {
+        const session = await sessionsCollection.findOne({ token })
+        if (!session) {
+            res.send("Não autorizado!")
+            return;
+        }
+
+        const product = await productCollection.findOne({ _id: ObjectId(id) })
+        console.log(product)
+        if (!product) {
+            res.status(404).send("Esse produto não existe!")
+            return;
+        }
+
+        res.send(product)
+
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
+    }
+})
+
+app.listen(5000, async () => {
+    if (productCollection) {
+        await loadDB()
+    }
+    console.log("Server running in port: 5000")
+})
