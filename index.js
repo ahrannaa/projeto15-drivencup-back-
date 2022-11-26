@@ -210,5 +210,45 @@ app.put("/carts", async (req, res) => {
     }
 })
 
+app.get("/carts", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+
+    const session = await sessionsCollection.findOne({ token })
+    console.log(session)
+    if (!session) {
+        res.send("Não autorizado")
+        return;
+    }
+
+    try {
+        const cart = await cartCollection.findOne({ userId: session.userId })
+
+        if(!cart) {
+          res.sendStatus(404)
+        }
+
+        const products = await Promise.all(cart.products.map(async (p) => {
+            const { _id, name, image, price } = await productCollection
+                .findOne({ _id: ObjectId(p.productId) })
+
+            return {
+                productId: _id.toString(),
+                name,
+                image,
+                price,
+                amount: p.amount
+            }
+        }))
+
+        res.send({ _id: cart._id.toString(), products })
+
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
+    }
+   
+})
+
 app.listen(5000, console.log("Server running in port: 5000")
 )
