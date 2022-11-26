@@ -33,13 +33,7 @@ const db = mongoClient.db("drivenCup");
 const userCollection = db.collection("users")
 const productCollection = db.collection("products")
 const sessionsCollection = db.collection("sessions")
-
-
-const loadDB = async () => {
-    console.log("Registering products...")
-    await productCollection.deleteMany({})
-    await productCollection.insertMany(products)
-}
+const cartCollection = db.collection("carts")
 
 app.post("/users", async (req, res) => {
     const { name, email, password, confirmThePassword } = req.body
@@ -130,7 +124,7 @@ app.get("/products", async (req, res) => {
         }
 
         const products = await productCollection.find().toArray()
-        const parcialProducts = products.map(({ _id, name, image, price }) => ({ _id:_id.toString(), name, image, price }))
+        const parcialProducts = products.map(({ _id, name, image, price }) => ({ _id: _id.toString(), name, image, price }))
 
         res.send(parcialProducts)
         console.log(parcialProducts)
@@ -170,9 +164,51 @@ app.get("/products/:id", async (req, res) => {
     }
 })
 
-app.listen(5000, async () => {
-    if (productCollection) {
-        await loadDB()
+app.put("/carts", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+    const newProduct = req.body
+
+    try {
+        const session = await sessionsCollection.findOne({ token })
+        if (!session) {
+            res.send("Não autorizado")
+            return;
+        }
+
+        const cart = await cartCollection.findOne({ userId: session.userId })
+        if (!cart) {
+            const newCart = {
+                userId: session.userId,
+                products: [newProduct], // {productId: 123, amout: 200}
+            }
+            await cartCollection.insertOne(newCart)
+            res.send("Produto adicionado!")
+
+        } else {
+            let isNewProduct = true
+
+            const newProducts = cart.products.map((product) => {
+                if (product.productId == newProduct.productId) {
+                    isNewProduct = false
+                    return newProduct
+                }
+                return product
+            })
+
+            if (isNewProduct) {
+                newProducts.push(newProduct)
+            }
+
+            await cartCollection.updateOne({ _id: cart._id }, { $set: { products: newProducts } })
+            res.send("Produto já adicionado")
+        }
+
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
     }
-    console.log("Server running in port: 5000")
 })
+
+app.listen(5000, console.log("Server running in port: 5000")
+)
