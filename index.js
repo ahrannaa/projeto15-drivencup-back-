@@ -23,7 +23,6 @@ const deleteProductsSchema = joi.object({
   productId: joi.string().required(),
 })
 
-
 const app = express()
 dotenv.config()
 app.use(cors())
@@ -266,7 +265,7 @@ app.get("/carts", async (req, res) => {
 
 })
 
-app.delete("/delete", async (req, res) => {
+app.delete("/carts", async (req, res) => {
     const { authorization } = req.headers
     const token = authorization?.replace("Bearer ", "")
     const { productId } = req.body
