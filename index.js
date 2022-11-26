@@ -8,10 +8,19 @@ import { v4 as uuidV4 } from "uuid"
 import { products } from "./products.js";
 
 
-const validacaoSchema = joi.object({
+const usersSchema = joi.object({
     email: joi.string().required().email(),
     name: joi.string().required().min(3),
     password: joi.string().required(),
+})
+
+const loginSchema = joi.object({
+    email: joi.string().required().email(),
+    password: joi.string().required(),
+})
+
+const deleteProductsSchema = joi.object({
+  productId: joi.string().required(),
 })
 
 
@@ -38,7 +47,7 @@ const cartCollection = db.collection("carts")
 app.post("/users", async (req, res) => {
     const { name, email, password, confirmThePassword } = req.body
 
-    const validation = validacaoSchema.validate({ email, name, password }, { abortEarly: false })
+    const validation = usersSchema.validate({ email, name, password }, { abortEarly: false })
 
     if (validation.error) {
         const erros = validation.error.details.map((detail) => detail.message)
@@ -79,6 +88,14 @@ app.post("/login", async (req, res) => {
     const { email, password } = req.body
     const token = uuidV4()
 
+    const validation = loginSchema.validate({ email, password }, { abortEarly: false })
+
+    if (validation.error) {
+        const erros = validation.error.details.map((detail) => detail.message)
+        res.status(400).send(erros)
+        return;
+    }
+
     try {
         const user = await userCollection.findOne({ email })
         if (!user) {
@@ -94,7 +111,7 @@ app.post("/login", async (req, res) => {
 
         const tokenExist = await sessionsCollection.findOne({ userId: user._id })
         if (!tokenExist) {
-            await db.collection("sessions").insertOne({
+            await sessionsCollection.insertOne({
                 token,
                 userId: user._id
             })
@@ -140,8 +157,7 @@ app.get("/products/:id", async (req, res) => {
     const { authorization } = req.headers
     const token = authorization?.replace("Bearer ", "")
     const { id } = req.params;
-    console.log(id)
-
+  
     try {
         const session = await sessionsCollection.findOne({ token })
         if (!session) {
@@ -150,7 +166,7 @@ app.get("/products/:id", async (req, res) => {
         }
 
         const product = await productCollection.findOne({ _id: ObjectId(id) })
-        console.log(product)
+       
         if (!product) {
             res.status(404).send("Esse produto não existe!")
             return;
@@ -169,7 +185,7 @@ app.put("/carts", async (req, res) => {
     const token = authorization?.replace("Bearer ", "")
     const newProduct = req.body
 
-    try {
+     try {
         const session = await sessionsCollection.findOne({ token })
         if (!session) {
             res.send("Não autorizado")
@@ -201,7 +217,7 @@ app.put("/carts", async (req, res) => {
             }
 
             await cartCollection.updateOne({ _id: cart._id }, { $set: { products: newProducts } })
-            res.send("Produto já adicionado")
+            res.send("Produto adicionado")
         }
 
     } catch (err) {
@@ -224,8 +240,8 @@ app.get("/carts", async (req, res) => {
     try {
         const cart = await cartCollection.findOne({ userId: session.userId })
 
-        if(!cart) {
-          res.sendStatus(404)
+        if (!cart) {
+            res.sendStatus(404)
         }
 
         const products = await Promise.all(cart.products.map(async (p) => {
@@ -247,7 +263,45 @@ app.get("/carts", async (req, res) => {
         console.log(err)
         res.sendStatus(500)
     }
-   
+
+})
+
+app.delete("/delete", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+    const { productId } = req.body
+
+    const validation = deleteProductsSchema.validate({ productId }, { abortEarly: false })
+
+    if (validation.error) {
+        const erros = validation.error.details.map((detail) => detail.message)
+        res.status(400).send(erros)
+        return;
+    }
+
+    const session = await sessionsCollection.findOne({ token })
+    if (!session) {
+        res.status(401).send("Não autorizado")
+        return;
+    }
+
+    try {
+        const cart = await cartCollection.findOne({ useId: session.useId })
+        if (!cart) {
+            res.sendStatus(404)
+        }
+        const products = cart.products.filter((p) => p.productId != productId)
+        console.log(cart)
+        console.log(products)
+
+        await cartCollection.updateOne({ _id: cart._id }, { $set: { products } })
+        res.send("Produto removido")
+    } catch (err) {
+        console.log(err)
+        res.sendStatus(500)
+    }
+
+
 })
 
 app.listen(5000, console.log("Server running in port: 5000")
