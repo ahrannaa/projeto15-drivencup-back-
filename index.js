@@ -20,7 +20,7 @@ const loginSchema = joi.object({
 })
 
 const deleteProductsSchema = joi.object({
-  productId: joi.string().required(),
+    productId: joi.string().required(),
 })
 
 const app = express()
@@ -42,6 +42,24 @@ const userCollection = db.collection("users")
 const productCollection = db.collection("products")
 const sessionsCollection = db.collection("sessions")
 const cartCollection = db.collection("carts")
+const purchaseCollection = db.collection("purchases")
+
+
+const getProducts = async (cart) => {
+    const products = await Promise.all(cart.products.map(async (p) => {
+        const {  name, image, price } = await productCollection
+            .findOne({ _id: ObjectId(p.productId) })
+
+        return {
+            name,
+            image,
+            price,
+            amount: p.amount
+        }
+    }))
+
+    return products
+}
 
 app.post("/users", async (req, res) => {
     const { name, email, password, confirmThePassword } = req.body
@@ -156,7 +174,7 @@ app.get("/products/:id", async (req, res) => {
     const { authorization } = req.headers
     const token = authorization?.replace("Bearer ", "")
     const { id } = req.params;
-  
+
     try {
         const session = await sessionsCollection.findOne({ token })
         if (!session) {
@@ -165,7 +183,7 @@ app.get("/products/:id", async (req, res) => {
         }
 
         const product = await productCollection.findOne({ _id: ObjectId(id) })
-       
+
         if (!product) {
             res.status(404).send("Esse produto não existe!")
             return;
@@ -184,7 +202,7 @@ app.put("/carts", async (req, res) => {
     const token = authorization?.replace("Bearer ", "")
     const newProduct = req.body
 
-     try {
+    try {
         const session = await sessionsCollection.findOne({ token })
         if (!session) {
             res.send("Não autorizado")
@@ -243,18 +261,7 @@ app.get("/carts", async (req, res) => {
             res.sendStatus(404)
         }
 
-        const products = await Promise.all(cart.products.map(async (p) => {
-            const { _id, name, image, price } = await productCollection
-                .findOne({ _id: ObjectId(p.productId) })
-
-            return {
-                productId: _id.toString(),
-                name,
-                image,
-                price,
-                amount: p.amount
-            }
-        }))
+        const products = await getProducts(cart)
 
         res.send({ _id: cart._id.toString(), products })
 
@@ -298,6 +305,47 @@ app.delete("/carts", async (req, res) => {
         res.sendStatus(500)
     }
 
+
+})
+app.post("/purchases", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+    const { payment, cartId } = req.body
+
+    const session = await sessionsCollection.findOne({ token })
+    if (!session) {
+        res.send("Não autorizado")
+        return;
+    }
+
+    try {
+        const cart = await cartCollection.findOne({ _id: ObjectId(cartId) })
+        console.log(cart)
+        if (!cart) {
+            res.status(401).send("Não autotizado")
+            return;
+        }
+
+        await purchaseCollection.insertOne({ payment, userId: cart.userId, products: cart.products })
+        
+        const user = await userCollection.findOne({ _id: cart.userId })
+        const products = await getProducts(cart)
+
+        const userData = {
+            name: user.name,
+            email: user.email,
+            products: products,
+            payment: req.body.payment
+        }
+
+        await cartCollection.deleteOne({userId:cart.userId})
+
+        res.send(userData)
+
+    } catch (error) {
+        console.log(error)
+        res.sendStatus(500)
+    }
 
 })
 
