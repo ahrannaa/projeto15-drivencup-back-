@@ -285,13 +285,11 @@ app.delete("/carts", async (req, res) => {
     }
 
     try {
-        const cart = await cartCollection.findOne({ useId: session.useId })
+        const cart = await cartCollection.findOne({ userId: session.userId })
         if (!cart) {
             res.sendStatus(404)
         }
         const products = cart.products.filter((p) => p.productId != productId)
-        console.log(cart)
-        console.log(products)
 
         await cartCollection.updateOne({ _id: cart._id }, { $set: { products } })
         res.send("Produto removido")
