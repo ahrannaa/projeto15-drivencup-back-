@@ -17,7 +17,6 @@ async function userAlreadyExists(email) {
 }
 
 export async function userSchemaValidation(req, res, next) {
-    console.log("#### PASSEI NO MID")
     const { email, password, confirmedPassword } = req.body
    
     const validation = validateRequest(usersSchema, req.body)

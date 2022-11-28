@@ -2,8 +2,6 @@ import { productCollection, sessionsCollection } from "../database/db.js"
 import { ObjectId } from "mongodb";
 
 export async function getProducts(req, res) {
-    console.log("#### PASSEI NO CONTROLLER")
-
     try {
         const products = await productCollection.find().toArray()
         const parcialProducts = products.map(({ _id, name, image, price }) => ({ _id: _id.toString(), name, image, price }))

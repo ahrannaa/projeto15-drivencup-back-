@@ -3,7 +3,6 @@ import { v4 as uuidV4 } from "uuid"
 import { userCollection, sessionsCollection } from "../database/db.js"
 
 export async function registerUser(req, res) {
-    console.log("#### PASSEI NO CONTROLLER")
     const { password, email, name } = req.body
     try {
         const hashPassword = bcrypt.hashSync(password, 10)
