@@ -1,10 +1,10 @@
-import { Router } from "express";
-import { loginUser, registerUser } from "../controllers/user.controllers.js";
+import { Router } from "express"
+import { loginUser, registerUser } from "../controllers/user.controllers.js"
+import { loginSchemaValidation, userSchemaValidation } from "../middlewares/userSchemaValidation.middlewares.js"
 
-const router = Router();
+const userRoutes = Router()
 
-router.post("/users" , registerUser);
-router.post("/login", loginUser);
+userRoutes.post("/users", userSchemaValidation, registerUser)
+userRoutes.post("/login", loginSchemaValidation, loginUser)
 
-export default router;
-
+export default userRoutes

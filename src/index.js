@@ -2,8 +2,7 @@ import express from "express";
 import cors from "cors";
 import { ObjectId } from "mongodb";
 import joi from "joi";
-import bcrypt from "bcrypt"
-import { v4 as uuidV4 } from "uuid"
+import userRoutes from "./routes/user.route.js"
 
 
 const deleteProductsSchema = joi.object({
@@ -13,6 +12,7 @@ const deleteProductsSchema = joi.object({
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use(userRoutes);
 
 const getProducts = async (cart) => {
     const products = await Promise.all(cart.products.map(async (p) => {
@@ -31,91 +31,6 @@ const getProducts = async (cart) => {
 const cartNotExist = (cart) => {
     return !cart || cart.products.length == 0
 }
-
-app.post("/users", async (req, res) => {
-    const { name, email, password, confirmThePassword } = req.body
-
-    const validation = usersSchema.validate({ email, name, password }, { abortEarly: false })
-
-    if (validation.error) {
-        const erros = validation.error.details.map((detail) => detail.message)
-        res.status(400).send(erros)
-        return;
-    }
-
-    try {
-        const user = await userCollection.findOne({ email })
-
-        if (user != null) {
-            res.status(409).send("Esse email já existe. Tente outro!")
-            return;
-        }
-
-        if (password != confirmThePassword) {
-            res.status(400).send("Senhas diferentes")
-            return;
-        }
-        const hashPassword = bcrypt.hashSync(password, 10)
-        console.log(hashPassword)
-
-        await userCollection.insertOne({ name, email, password: hashPassword })
-        res.sendStatus(201)
-
-
-
-    } catch (error) {
-        console.log(error)
-        res.sendStatus(500)
-    }
-
-}
-
-)
-
-app.post("/login", async (req, res) => {
-    const { email, password } = req.body
-    const token = uuidV4()
-
-    const validation = loginSchema.validate({ email, password }, { abortEarly: false })
-
-    if (validation.error) {
-        const erros = validation.error.details.map((detail) => detail.message)
-        res.status(400).send(erros)
-        return;
-    }
-
-    try {
-        const user = await userCollection.findOne({ email })
-        if (!user) {
-            res.status(401).send("Não autotizado")
-            return;
-        }
-
-        const passwordOk = bcrypt.compareSync(password, user.password)
-        if (!passwordOk) {
-            res.status(401).send("Não autorizado")
-            return
-        }
-
-        const tokenExist = await sessionsCollection.findOne({ userId: user._id })
-        if (!tokenExist) {
-            await sessionsCollection.insertOne({
-                token,
-                userId: user._id
-            })
-            res.send({ token })
-            return;
-        }
-        res.send({user:user.name, email:user.email, token:tokenExist.token })
-
-
-    } catch (err) {
-        console.log(err)
-        res.sendStatus(500)
-    }
-
-}
-)
 
 app.get("/products", async (req, res) => {
     const { authorization } = req.headers
