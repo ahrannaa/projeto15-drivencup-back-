@@ -18,13 +18,15 @@ export async function loginUser(req, res) {
     try {
         const { _id, name, email } = await userCollection.findOne({ email: req.body.email })
         const session = await sessionsCollection.findOne({ userId: _id })
-        const token = uuidV4()
 
         if (!session) {
+            const newToken = uuidV4()
             await sessionsCollection.insertOne({ token, userId: _id })
+            res.send({ name, email, token: newToken })
+            return
         }
 
-        res.send({ name, email, token })
+        res.send({ name, email, token: session.token })
 
     } catch (err) {
         console.log(err)
