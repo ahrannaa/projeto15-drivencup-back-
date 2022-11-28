@@ -1,7 +1,5 @@
 import express from "express";
 import cors from "cors";
-import { ObjectId } from "mongodb";
-import joi from "joi";
 import userRoutes from "./routes/user.route.js"
 import productRoutes from "./routes/product.route.js";
 import cartRoutes from "./routes/cart.route.js";
