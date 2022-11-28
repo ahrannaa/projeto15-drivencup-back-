@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
-import { MongoClient, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import joi from "joi";
 import bcrypt from "bcrypt"
 import { v4 as uuidV4 } from "uuid"
@@ -23,26 +22,8 @@ const deleteProductsSchema = joi.object({
 })
 
 const app = express()
-dotenv.config()
 app.use(cors())
 app.use(express.json())
-
-const mongoClient = new MongoClient(process.env.MONGO_URI)
-
-try {
-    await mongoClient.connect()
-    console.log("MongoDb Conectado")
-} catch (err) {
-    console.log(err)
-}
-
-const db = mongoClient.db("drivenCup");
-const userCollection = db.collection("users")
-const productCollection = db.collection("products")
-const sessionsCollection = db.collection("sessions")
-const cartCollection = db.collection("carts")
-const purchaseCollection = db.collection("purchases")
-
 
 const getProducts = async (cart) => {
     const products = await Promise.all(cart.products.map(async (p) => {
@@ -136,7 +117,7 @@ app.post("/login", async (req, res) => {
             res.send({ token })
             return;
         }
-        res.send({ token: tokenExist.token })
+        res.send({user:user.name, email:user.email, token:tokenExist.token })
 
 
     } catch (err) {
@@ -380,5 +361,5 @@ app.post("/carts", async (req, res) => {
 
 })
 
-app.listen(5000, console.log("Server running in port: 5000")
-)
+const port = process.env.PORT || 5000;
+app.listen(port, () => console.log(`Server running in port: ${port}`));
