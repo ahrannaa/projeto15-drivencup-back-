@@ -5,7 +5,6 @@ import { MongoClient, ObjectId } from "mongodb";
 import joi from "joi";
 import bcrypt from "bcrypt"
 import { v4 as uuidV4 } from "uuid"
-import { products } from "./products.js";
 
 
 const usersSchema = joi.object({
@@ -47,18 +46,20 @@ const purchaseCollection = db.collection("purchases")
 
 const getProducts = async (cart) => {
     const products = await Promise.all(cart.products.map(async (p) => {
-        const {  name, image, price } = await productCollection
+        const product = await productCollection
             .findOne({ _id: ObjectId(p.productId) })
 
         return {
-            name,
-            image,
-            price,
+            ...product,
             amount: p.amount
         }
     }))
 
     return products
+}
+
+const cartNotExist = (cart) => {
+    return !cart || cart.products.length == 0
 }
 
 app.post("/users", async (req, res) => {
@@ -257,8 +258,9 @@ app.get("/carts", async (req, res) => {
     try {
         const cart = await cartCollection.findOne({ userId: session.userId })
 
-        if (!cart) {
+        if (cartNotExist(cart)) {
             res.sendStatus(404)
+            return
         }
 
         const products = await getProducts(cart)
@@ -293,8 +295,9 @@ app.delete("/carts", async (req, res) => {
 
     try {
         const cart = await cartCollection.findOne({ userId: session.userId })
-        if (!cart) {
+        if (cartNotExist(cart)) {
             res.sendStatus(404)
+            return
         }
         const products = cart.products.filter((p) => p.productId != productId)
 
@@ -304,9 +307,8 @@ app.delete("/carts", async (req, res) => {
         console.log(err)
         res.sendStatus(500)
     }
-
-
 })
+
 app.post("/purchases", async (req, res) => {
     const { authorization } = req.headers
     const token = authorization?.replace("Bearer ", "")
@@ -320,14 +322,14 @@ app.post("/purchases", async (req, res) => {
 
     try {
         const cart = await cartCollection.findOne({ _id: ObjectId(cartId) })
-        console.log(cart)
-        if (!cart) {
+
+        if (cartNotExist(cart)) {
             res.status(401).send("Não autotizado")
             return;
         }
 
         await purchaseCollection.insertOne({ payment, userId: cart.userId, products: cart.products })
-        
+
         const user = await userCollection.findOne({ _id: cart.userId })
         const products = await getProducts(cart)
 
@@ -338,7 +340,7 @@ app.post("/purchases", async (req, res) => {
             payment: req.body.payment
         }
 
-        await cartCollection.deleteOne({userId:cart.userId})
+        await cartCollection.deleteOne({ userId: cart.userId })
 
         res.send(userData)
 
