@@ -3,6 +3,7 @@ import cors from "cors";
 import { ObjectId } from "mongodb";
 import joi from "joi";
 import userRoutes from "./routes/user.route.js"
+import productRoutes from "./routes/product.route.js";
 
 
 const deleteProductsSchema = joi.object({
@@ -13,6 +14,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 app.use(userRoutes);
+app.use(productRoutes)
 
 const getProducts = async (cart) => {
     const products = await Promise.all(cart.products.map(async (p) => {
@@ -31,57 +33,6 @@ const getProducts = async (cart) => {
 const cartNotExist = (cart) => {
     return !cart || cart.products.length == 0
 }
-
-app.get("/products", async (req, res) => {
-    const { authorization } = req.headers
-    const token = authorization?.replace("Bearer ", "")
-
-    try {
-        const session = await sessionsCollection.findOne({ token })
-        if (!session) {
-            res.send("Não autorizado")
-            return;
-        }
-
-        const products = await productCollection.find().toArray()
-        const parcialProducts = products.map(({ _id, name, image, price }) => ({ _id: _id.toString(), name, image, price }))
-
-        res.send(parcialProducts)
-        console.log(parcialProducts)
-
-    } catch (err) {
-        console.log(err)
-        res.sendStatus(500)
-    }
-
-})
-
-app.get("/products/:id", async (req, res) => {
-    const { authorization } = req.headers
-    const token = authorization?.replace("Bearer ", "")
-    const { id } = req.params;
-
-    try {
-        const session = await sessionsCollection.findOne({ token })
-        if (!session) {
-            res.send("Não autorizado!")
-            return;
-        }
-
-        const product = await productCollection.findOne({ _id: ObjectId(id) })
-
-        if (!product) {
-            res.status(404).send("Esse produto não existe!")
-            return;
-        }
-
-        res.send(product)
-
-    } catch (err) {
-        console.log(err)
-        res.sendStatus(500)
-    }
-})
 
 app.put("/carts", async (req, res) => {
     const { authorization } = req.headers
