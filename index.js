@@ -340,14 +340,43 @@ app.post("/purchases", async (req, res) => {
             payment: req.body.payment
         }
 
-        await cartCollection.deleteOne({ userId: cart.userId })
-
         res.send(userData)
 
     } catch (error) {
         console.log(error)
         res.sendStatus(500)
     }
+
+})
+
+app.post("/carts", async (req, res) => {
+    const { authorization } = req.headers
+    const token = authorization?.replace("Bearer ", "")
+    const { cartId } = req.body
+
+    const session = await sessionsCollection.findOne({ token })
+    if (!session) {
+        res.send("Não autorizado")
+        return;
+    }
+
+    try {
+        const cart = await cartCollection.findOne({ _id: ObjectId(cartId) })
+
+        if (cartNotExist(cart)) {
+            res.status(401).send("Não autotizado")
+            return;
+        }
+
+        const deletou = await cartCollection.deleteOne({ userId: cart.userId })
+        console.log(deletou)
+        res.send("Carrinho deletado!")
+
+    } catch (error) {
+        console.log(error)
+        res.sendStatus(500)
+    }
+
 
 })
 
