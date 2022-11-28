@@ -1,9 +1,10 @@
 import { Router } from "express"
-import { products, productsId } from "../controllers/product.controllers.js"
+import { getProducts, getProductById} from "../controllers/product.controllers.js"
+import { tokenValidation } from "../middlewares/tokenValidation.middleware.js"
 
 const productRoutes = Router()
 
-productRoutes.get("/products", products)
-productRoutes.get("/products/:id",productsId)
+productRoutes.get("/products", tokenValidation, getProducts)
+productRoutes.get("/products/:id",tokenValidation, getProductById)
 
 export default productRoutes
