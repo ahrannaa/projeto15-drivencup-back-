@@ -21,7 +21,7 @@ export async function loginUser(req, res) {
 
         if (!session) {
             const newToken = uuidV4()
-            await sessionsCollection.insertOne({ token, userId: _id })
+            await sessionsCollection.insertOne({ token: newToken, userId: _id })
             res.send({ name, email, token: newToken })
             return
         }

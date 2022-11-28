@@ -26,7 +26,7 @@ export async function registerPurchases(req, res) {
         const cart = await cartCollection.findOne({ _id: ObjectId(cartId) })
 
         if (cartNotExist(cart)) {
-            res.status(401).send("Não autotizado")
+            res.status(404).send("Carrinho não encontrado")
             return;
         }
 

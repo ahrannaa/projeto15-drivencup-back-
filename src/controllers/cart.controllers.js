@@ -5,7 +5,7 @@ const cartNotExist = (cart) => {
     return !cart || cart.products.length == 0
 }
 
-const getProducts = async (cart) => {
+async function getProducts(cart) {
     const products = await Promise.all(cart.products.map(async (p) => {
         const product = await productCollection
             .findOne({ _id: ObjectId(p.productId) })
@@ -27,7 +27,7 @@ export async function registerCart(req, res) {
         const cart = await cartCollection.findOne({ userId: user._id })
         if (!cart) {
             const newCart = {
-                userId: session.userId,
+                userId: user._id,
                 products: [newProduct], // {productId: 123, amout: 200}
             }
             await cartCollection.insertOne(newCart)
@@ -105,12 +105,11 @@ export async function deleteCart(req, res) {
         const cart = await cartCollection.findOne({ _id: ObjectId(cartId) })
 
         if (cartNotExist(cart)) {
-            res.status(401).send("Não autotizado")
+            res.status(404).send("Carrinho não encotrado")
             return;
         }
 
-        const deletou = await cartCollection.deleteOne({ userId: cart.userId })
-        console.log(deletou)
+        await cartCollection.deleteOne({ userId: cart.userId })
         res.send("Carrinho deletado!")
 
     } catch (error) {
