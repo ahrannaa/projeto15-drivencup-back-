@@ -6,17 +6,6 @@ import bcrypt from "bcrypt"
 import { v4 as uuidV4 } from "uuid"
 
 
-const usersSchema = joi.object({
-    email: joi.string().required().email(),
-    name: joi.string().required().min(3),
-    password: joi.string().required(),
-})
-
-const loginSchema = joi.object({
-    email: joi.string().required().email(),
-    password: joi.string().required(),
-})
-
 const deleteProductsSchema = joi.object({
     productId: joi.string().required(),
 })
